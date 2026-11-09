@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="千葉工業大学からA2RL（Abu Dhabi Autonomous Racing League）参戦を目指す自律走行レーシングプロジェクト。">
+<title>CIT Autonomous Racing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700;800;900&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: night-circuit HUD — full-bleed bands, a side-view car racing through the hero, telemetry readouts as the page's recurring detail */
+:root{
+  --asphalt:#0a0d13;
+  --panel:#111621;
+  --line:#222a39;
+  --fg:#e9edf4;
+  --muted:#8a94a7;
+  --amber:#ff8a1f;
+  --amber-dim:rgba(255,138,31,.16);
+  --cyan:#45d1ff;
+  --cyan-dim:rgba(69,209,255,.14);
+  --f-display:"Saira Condensed","Arial Narrow",Impact,sans-serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --wrap:1180px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}img{max-width:100%}[hidden]{display:none!important}
+body{background:var(--asphalt);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.8;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--asphalt)}
+.wrap{max-width:var(--wrap);margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+
+/* ---------- NAV ---------- */
+.nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:rgba(10,13,19,.82);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.nav .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:12px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--f-display);font-weight:800;letter-spacing:.06em;font-size:20px;text-decoration:none;font-style:italic}
+.brand i{display:block;width:26px;height:14px;background:linear-gradient(90deg,var(--amber) 0 40%,transparent 40% 52%,var(--amber) 52% 70%,transparent 70% 80%,var(--amber) 80%);transform:skewX(-20deg)}
+.nav ul{display:flex;gap:22px;list-style:none;margin:0;padding:0;font-family:var(--f-display);font-weight:600;letter-spacing:.12em;font-size:14px;text-transform:uppercase}
+.nav ul a{text-decoration:none;color:var(--muted);transition:color .2s}
+.nav ul a:hover{color:var(--fg)}
+@media (max-width:760px){.nav ul{display:none}}
+
+/* ---------- HERO ---------- */
+.hero{position:relative;overflow:hidden;border-bottom:1px solid var(--line);
+  background:
+    radial-gradient(120% 70% at 75% 100%,rgba(255,138,31,.18),transparent 60%),
+    radial-gradient(80% 60% at 10% 0%,rgba(69,209,255,.10),transparent 60%),
+    var(--asphalt)}
+.hero .wrap{position:relative;z-index:2;padding-block:64px 0}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.18em;color:var(--cyan);text-transform:uppercase;display:flex;align-items:center;gap:10px}
+.eyebrow .dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan);animation:blink 1.4s infinite}
+@keyframes blink{50%{opacity:.25}}
+.hero h1{font-family:var(--f-display);font-weight:900;font-style:italic;text-transform:uppercase;line-height:.86;letter-spacing:-.01em;margin:18px 0 0;font-size:clamp(56px,11vw,150px);text-wrap:balance}
+.hero h1 .stroke{color:transparent;-webkit-text-stroke:2px var(--fg)}
+.hero h1 .amber{color:var(--amber)}
+.hero .lead{max-width:34em;color:#c4cbd8;margin:22px 0 0;font-size:clamp(15px,1.6vw,18px)}
+.hero .ctas{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
+.btn{display:inline-flex;align-items:center;gap:10px;padding:12px 22px;font-family:var(--f-display);font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:15px;text-decoration:none;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);transition:transform .2s,background .2s}
+.btn.primary{background:var(--amber);color:#160b00}
+.btn.ghost{background:var(--panel);color:var(--fg);box-shadow:inset 0 0 0 1px var(--line)}
+.btn:hover{transform:translateX(4px)}
+
+/* stage with the car */
+.stage{position:relative;z-index:1;height:clamp(220px,32vw,380px);margin-top:20px}
+@media (min-width:1000px){.stage{margin-top:-110px}}
+.road{position:absolute;inset:auto 0 0 0;height:46%;background:linear-gradient(180deg,transparent,rgba(255,255,255,.02));overflow:hidden;perspective:300px}
+.road .grid{position:absolute;inset:-100% -50% 0 -50%;transform:rotateX(62deg);transform-origin:bottom;
+  background-image:linear-gradient(90deg,rgba(69,209,255,.18) 1px,transparent 1px),linear-gradient(0deg,rgba(69,209,255,.12) 1px,transparent 1px);
+  background-size:80px 80px;animation:gridrun .5s linear infinite}
+@keyframes gridrun{to{background-position:-80px 0,0 0}}
+.kerb{position:absolute;left:0;right:0;bottom:16%;height:6px;background:repeating-linear-gradient(90deg,var(--amber) 0 40px,var(--fg) 40px 80px);opacity:.75;animation:kerb .25s linear infinite}
+@keyframes kerb{to{background-position:-80px 0}}
+.streaks{position:absolute;inset:0;pointer-events:none}
+.streak{position:absolute;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--fg));opacity:.5;animation:streak linear infinite}
+@keyframes streak{from{transform:translateX(110vw)}to{transform:translateX(-40vw)}}
+.car{position:absolute;left:50%;bottom:9%;width:min(880px,108%);transform:translateX(-46%);animation:carIn 1.4s cubic-bezier(.2,.8,.2,1) both}
+@keyframes carIn{from{transform:translateX(-160%)}to{transform:translateX(-46%)}}
+.car svg{display:block;width:100%;height:auto;animation:rumble .12s steps(2) infinite;filter:drop-shadow(0 18px 18px rgba(0,0,0,.6))}
+@keyframes rumble{50%{transform:translateY(1px)}}
+.wheel{transform-box:fill-box;transform-origin:center;animation:spin .18s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.trail{position:absolute;left:0;bottom:22%;height:46px;width:46%;background:linear-gradient(90deg,transparent,var(--amber-dim) 60%,rgba(255,138,31,.35));filter:blur(14px)}
+.lidar{animation:scan 1.6s ease-in-out infinite;transform-box:fill-box;transform-origin:left center}
+@keyframes scan{0%,100%{opacity:.15}50%{opacity:.6}}
+
+/* HUD under hero */
+.hud{position:relative;z-index:3;border-top:1px solid var(--line);background:rgba(17,22,33,.85);backdrop-filter:blur(6px)}
+.hud .wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
+.hud .cell{padding:16px 18px;border-left:1px solid var(--line);min-width:0}
+.hud .cell:first-child{border-left:0}
+.hud .k{font-family:var(--f-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.hud .v{font-family:var(--f-display);font-weight:700;font-size:clamp(24px,3.2vw,38px);line-height:1.1;font-variant-numeric:tabular-nums;font-style:italic}
+.hud .v small{font-size:.45em;color:var(--muted);margin-left:4px;font-style:normal}
+.hud .v.ok{color:var(--cyan)}
+@media (max-width:640px){.hud .wrap{grid-template-columns:repeat(2,1fr)}.hud .cell:nth-child(3){border-left:0}.hud .cell:nth-child(n+3){border-top:1px solid var(--line)}}
+
+/* ---------- SECTIONS ---------- */
+section{border-bottom:1px solid var(--line)}
+section > .wrap{padding-block:clamp(64px,9vw,110px)}
+.sec-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:40px}
+.sec-head h2{font-family:var(--f-display);font-weight:800;font-style:italic;text-transform:uppercase;font-size:clamp(40px,6vw,76px);line-height:.9;margin:8px 0 0;letter-spacing:-.005em;text-wrap:balance}
+.sec-head h2 em{font-style:italic;color:var(--amber)}
+.sec-head p{max-width:30em;color:var(--muted);margin:0}
+.label{font-family:var(--f-mono);font-size:12px;letter-spacing:.18em;color:var(--amber);text-transform:uppercase}
+
+/* About */
+.about{display:grid;grid-template-columns:1.1fr 1fr;gap:clamp(28px,5vw,72px);align-items:start}
+.about p{margin:0 0 1em;color:#c9d0dc;max-width:36em}
+.specs{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);background:var(--panel)}
+.spec{padding:20px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);min-width:0}
+.spec:nth-child(2n){border-right:0}
+.spec:nth-last-child(-n+2){border-bottom:0}
+.spec .n{font-family:var(--f-display);font-weight:800;font-style:italic;font-size:clamp(34px,4vw,48px);line-height:1;color:var(--fg);font-variant-numeric:tabular-nums}
+.spec .n span{font-size:.4em;color:var(--muted);font-style:normal;margin-left:4px}
+.spec .t{font-size:13px;color:var(--muted);margin-top:6px}
+@media (max-width:820px){.about{grid-template-columns:1fr}}
+
+/* Stack pipeline */
+.pipeline{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;background:var(--line);border:1px solid var(--line)}
+.stage-card{background:var(--asphalt);padding:28px 22px 26px;position:relative;min-width:0;transition:background .25s}
+.stage-card:hover{background:var(--panel)}
+.stage-card .idx{font-family:var(--f-mono);font-size:12px;color:var(--cyan);letter-spacing:.1em}
+.stage-card h3{font-family:var(--f-display);font-weight:800;font-style:italic;text-transform:uppercase;font-size:34px;line-height:1;margin:14px 0 4px;letter-spacing:.01em}
+.stage-card .jp{font-size:13px;color:var(--muted);margin-bottom:14px}
+.stage-card p{font-size:14px;color:#c4cbd8;margin:0 0 16px}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-family:var(--f-mono);font-size:11px;padding:3px 8px;border:1px solid var(--line);color:var(--muted)}
+.stage-card::after{content:"";position:absolute;right:-9px;top:34px;width:16px;height:16px;background:var(--asphalt);border-top:2px solid var(--line);border-right:2px solid var(--line);transform:rotate(45deg);z-index:2}
+.stage-card:last-child::after{display:none}
+@media (max-width:900px){.pipeline{grid-template-columns:1fr 1fr}.stage-card:nth-child(2)::after{display:none}}
+@media (max-width:520px){.pipeline{grid-template-columns:1fr}.stage-card::after{display:none}}
+
+/* Track sim */
+.sim{display:grid;grid-template-columns:1.5fr 1fr;gap:24px;align-items:stretch}
+.sim-canvas{position:relative;background:var(--panel);border:1px solid var(--line);min-width:0;aspect-ratio:16/10;max-width:100%}
+.sim-canvas canvas{position:absolute;inset:0;width:100%;height:100%}
+.sim-canvas .corner{position:absolute;left:14px;top:12px;font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+.tele{display:flex;flex-direction:column;gap:2px;background:var(--line);border:1px solid var(--line)}
+.tele .row{background:var(--asphalt);padding:16px 20px;display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.tele .k{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+.tele .v{font-family:var(--f-display);font-weight:700;font-style:italic;font-size:30px;font-variant-numeric:tabular-nums;line-height:1}
+.bar{height:6px;background:var(--line);margin-top:10px;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--cyan),var(--amber));width:50%;transition:width .12s linear}
+.tele .note{background:var(--asphalt);padding:14px 20px;font-size:13px;color:var(--muted);flex:1}
+@media (max-width:900px){.sim{grid-template-columns:1fr}}
+
+/* Roadmap */
+.timeline{position:relative;display:grid;grid-template-columns:repeat(5,1fr);gap:0}
+.timeline::before{content:"";position:absolute;left:0;right:0;top:11px;height:2px;background:linear-gradient(90deg,var(--amber) 0 40%,var(--line) 40%)}
+.ms{position:relative;padding:36px 18px 0 0;min-width:0}
+.ms::before{content:"";position:absolute;left:0;top:4px;width:16px;height:16px;transform:rotate(45deg);background:var(--asphalt);border:2px solid var(--line)}
+.ms.done::before{background:var(--amber);border-color:var(--amber)}
+.ms.now::before{background:var(--asphalt);border-color:var(--amber);box-shadow:0 0 0 6px var(--amber-dim)}
+.ms .when{font-family:var(--f-mono);font-size:12px;letter-spacing:.1em;color:var(--amber)}
+.ms:not(.done):not(.now) .when{color:var(--muted)}
+.ms h3{font-family:var(--f-display);font-weight:700;font-size:24px;margin:6px 0 6px;line-height:1.1;text-transform:uppercase;font-style:italic}
+.ms p{font-size:14px;color:#c4cbd8;margin:0}
+.status{display:inline-block;margin-top:10px;font-family:var(--f-mono);font-size:11px;padding:2px 8px;border:1px solid var(--line);color:var(--muted)}
+.ms.done .status{border-color:var(--amber);color:var(--amber)}
+.ms.now .status{background:var(--amber);color:#160b00;border-color:var(--amber)}
+@media (max-width:900px){
+  .timeline{grid-template-columns:1fr;gap:28px;padding-left:30px}
+  .timeline::before{left:7px;right:auto;top:0;bottom:0;width:2px;height:auto;background:linear-gradient(180deg,var(--amber) 0 40%,var(--line) 40%)}
+  .ms{padding:0}
+  .ms::before{left:-30px;top:6px}
+}
+
+/* Team */
+.team{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.member{border:1px solid var(--line);background:var(--panel);padding:20px;min-width:0}
+.member .num{font-family:var(--f-display);font-weight:900;font-style:italic;font-size:56px;line-height:1;color:transparent;-webkit-text-stroke:1.5px var(--amber)}
+.member h3{margin:12px 0 2px;font-size:17px;font-weight:700}
+.member .role{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;color:var(--cyan);text-transform:uppercase}
+.member p{font-size:13px;color:var(--muted);margin:10px 0 0}
+@media (max-width:900px){.team{grid-template-columns:1fr 1fr}}
+@media (max-width:480px){.team{grid-template-columns:1fr}}
+
+/* Support CTA */
+.support{position:relative;overflow:hidden;background:linear-gradient(100deg,var(--panel),var(--asphalt))}
+.support .wrap{display:grid;grid-template-columns:1.3fr 1fr;gap:40px;align-items:center}
+.support h2{font-family:var(--f-display);font-weight:900;font-style:italic;text-transform:uppercase;font-size:clamp(44px,7vw,96px);line-height:.88;margin:10px 0 0}
+.support h2 span{color:var(--amber)}
+.support ul{list-style:none;margin:0;padding:0;display:grid;gap:2px;background:var(--line);border:1px solid var(--line)}
+.support li{background:var(--asphalt);padding:16px 18px;display:flex;gap:14px;align-items:baseline}
+.support li b{font-family:var(--f-mono);font-size:12px;color:var(--amber);font-weight:500;white-space:nowrap}
+.support li span{font-size:14px;color:#c9d0dc}
+.contact{margin-top:24px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-family:var(--f-mono);font-size:14px}
+.contact code{background:var(--asphalt);border:1px solid var(--line);padding:10px 14px;user-select:all}
+.contact button{font:inherit;font-size:12px;letter-spacing:.12em;text-transform:uppercase;background:transparent;color:var(--fg);border:1px solid var(--line);padding:10px 14px;cursor:pointer}
+.contact button:hover{border-color:var(--amber);color:var(--amber)}
+.support::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(45deg,transparent 0 22px,rgba(255,138,31,.04) 22px 44px);pointer-events:none}
+@media (max-width:860px){.support .wrap{grid-template-columns:1fr}}
+
+footer .wrap{padding-block:28px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+
+/* marquee */
+.marquee{overflow:hidden;border-bottom:1px solid var(--line);background:var(--amber);color:#160b00}
+.marquee div{display:flex;gap:48px;width:max-content;padding:10px 0;font-family:var(--f-display);font-weight:800;font-style:italic;letter-spacing:.08em;text-transform:uppercase;font-size:20px;animation:marq 26s linear infinite}
+@keyframes marq{to{transform:translateX(-50%)}}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .car{transform:translateX(-46%)}
+}
+</style>
+</head>
+<body>
+<nav class="nav" aria-label="メインナビゲーション">
+  <div class="wrap">
+    <a class="brand" href="#top"><i></i>CIT AUTONOMOUS RACING</a>
+    <ul>
+      <li><a href="#about">A2RL</a></li>
+      <li><a href="#stack">Tech</a></li>
+      <li><a href="#sim">Sim</a></li>
+      <li><a href="#roadmap">Roadmap</a></li>
+      <li><a href="#team">Team</a></li>
+      <li><a href="#support">Support</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <div class="eyebrow"><span class="dot"></span>Road to A2RL · Chiba Institute of Technology</div>
+    <h1>No Driver.<br><span class="stroke">All</span> <span class="amber">Speed.</span></h1>
+    <p class="lead">ドライバーのいないフォーミュラカーが、時速250kmを超えて競い合う。千葉工業大学から、世界最高峰の自律走行レース A2RL への参戦を目指すプロジェクトです。</p>
+    <div class="ctas">
+      <a class="btn primary" href="#stack">取り組みを見る →</a>
+      <a class="btn ghost" href="#support">支援・協賛について</a>
+    </div>
+  </div>
+
+  <div class="stage" aria-hidden="true">
+    <div class="road"><div class="grid"></div></div>
+    <div class="kerb"></div>
+    <div class="streaks" id="streaks"></div>
+    <div class="trail"></div>
+    <div class="car">
+      <svg viewBox="0 0 820 230" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#2a3346"/>
+            <stop offset=".55" stop-color="#151b27"/>
+            <stop offset="1" stop-color="#0a0d13"/>
+          </linearGradient>
+          <linearGradient id="stripe" x1="0" x2="1">
+            <stop offset="0" stop-color="#ff8a1f" stop-opacity="0"/>
+            <stop offset=".25" stop-color="#ff8a1f"/>
+            <stop offset="1" stop-color="#ffb066"/>
+          </linearGradient>
+          <linearGradient id="beam" x1="0" x2="1">
+            <stop offset="0" stop-color="#45d1ff" stop-opacity=".9"/>
+            <stop offset="1" stop-color="#45d1ff" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <!-- ground shadow -->
+        <ellipse cx="410" cy="200" rx="370" ry="10" fill="#000" opacity=".55"/>
+        <!-- lidar beam -->
+        <polygon class="lidar" points="420,86 820,40 820,150" fill="url(#beam)" opacity=".3"/>
+        <!-- rear wing -->
+        <rect x="52" y="58" width="78" height="12" rx="2" fill="#1b2230" stroke="#ff8a1f" stroke-width="1.5"/>
+        <rect x="58" y="74" width="66" height="6" rx="1" fill="#1b2230"/>
+        <rect x="54" y="58" width="9" height="96" fill="#141a25"/>
+        <rect x="104" y="80" width="6" height="56" fill="#141a25"/>
+        <!-- main body -->
+        <path d="M70 168 L72 132 L120 126 L170 116 L290 112 L330 96 L352 92 L404 92 L440 108 L560 126 L700 146 L762 156 L770 168 Z" fill="url(#body)" stroke="#2f3a50" stroke-width="1.5"/>
+        <!-- sidepod -->
+        <path d="M230 168 L250 134 L420 130 L520 142 L560 168 Z" fill="#0f141d" stroke="#2f3a50"/>
+        <!-- livery stripe -->
+        <path d="M120 140 L420 132 L620 150 L760 160 L762 164 L620 158 L420 140 L120 148 Z" fill="url(#stripe)"/>
+        <!-- number panel -->
+        <text x="300" y="160" font-family="Saira Condensed, Arial Narrow, sans-serif" font-weight="900" font-style="italic" font-size="26" fill="#e9edf4" letter-spacing="1">CIT</text>
+        <!-- halo -->
+        <path d="M336 98 Q380 64 440 104" fill="none" stroke="#3a465e" stroke-width="7" stroke-linecap="round"/>
+        <!-- sensor pod (autonomous stack) -->
+        <rect x="350" y="70" width="58" height="18" rx="5" fill="#1b2230" stroke="#45d1ff" stroke-width="1.2"/>
+        <circle cx="400" cy="79" r="5" fill="#45d1ff"/>
+        <rect x="358" y="75" width="22" height="3" fill="#45d1ff" opacity=".6"/>
+        <!-- front wing -->
+        <path d="M660 172 L800 172 L804 160 L792 160 L786 166 L700 164 Z" fill="#1b2230" stroke="#ff8a1f" stroke-width="1.5"/>
+        <!-- floor -->
+        <rect x="120" y="166" width="590" height="8" fill="#07090d"/>
+        <!-- rear wheel -->
+        <g class="wheel">
+          <circle cx="176" cy="160" r="44" fill="#07090d"/>
+          <circle cx="176" cy="160" r="44" fill="none" stroke="#1f2633" stroke-width="6"/>
+          <circle cx="176" cy="160" r="22" fill="#141a25" stroke="#ff8a1f" stroke-width="2"/>
+          <path d="M176 140 L176 180 M156 160 L196 160 M162 146 L190 174 M190 146 L162 174" stroke="#3a465e" stroke-width="3"/>
+          <circle cx="176" cy="160" r="5" fill="#ff8a1f"/>
+        </g>
+        <!-- front wheel -->
+        <g class="wheel">
+          <circle cx="628" cy="164" r="38" fill="#07090d"/>
+          <circle cx="628" cy="164" r="38" fill="none" stroke="#1f2633" stroke-width="6"/>
+          <circle cx="628" cy="164" r="19" fill="#141a25" stroke="#ff8a1f" stroke-width="2"/>
+          <path d="M628 147 L628 181 M611 164 L645 164 M616 152 L640 176 M640 152 L616 176" stroke="#3a465e" stroke-width="3"/>
+          <circle cx="628" cy="164" r="4" fill="#ff8a1f"/>
+        </g>
+        <!-- rain light -->
+        <rect x="46" y="120" width="8" height="10" fill="#ff3b3b"><animate attributeName="opacity" values="1;.2;1" dur=".6s" repeatCount="indefinite"/></rect>
+      </svg>
+    </div>
+  </div>
+
+  <div class="hud">
+    <div class="wrap">
+      <div class="cell"><div class="k">Speed</div><div class="v" id="hudSpeed">0<small>km/h</small></div></div>
+      <div class="cell"><div class="k">Mode</div><div class="v ok">AUTO</div></div>
+      <div class="cell"><div class="k">Driver</div><div class="v">NONE</div></div>
+      <div class="cell"><div class="k">Target</div><div class="v">A2RL<small>2027</small></div></div>
+    </div>
+  </div>
+</header>
+
+<div class="marquee" aria-hidden="true">
+  <div>
+    <span>Perception</span><span>◆</span><span>Localization</span><span>◆</span><span>Planning</span><span>◆</span><span>Control</span><span>◆</span><span>Simulation</span><span>◆</span><span>Road to Abu Dhabi</span><span>◆</span>
+    <span>Perception</span><span>◆</span><span>Localization</span><span>◆</span><span>Planning</span><span>◆</span><span>Control</span><span>◆</span><span>Simulation</span><span>◆</span><span>Road to Abu Dhabi</span><span>◆</span>
+  </div>
+</div>
+
+<section id="about">
+  <div class="wrap">
+    <div class="sec-head">
+      <div><div class="label">01 — The League</div><h2>What is <em>A2RL</em>?</h2></div>
+      <p>Abu Dhabi Autonomous Racing League。人間のドライバーを乗せず、AIだけで走るフォーミュラカーのレースです。</p>
+    </div>
+    <div class="about">
+      <div>
+        <p>A2RL はアブダビのヤス・マリーナ・サーキットを舞台に開催される自律走行レースです。全チームが同一仕様のマシンを使い、勝敗を分けるのはソフトウェア。センサーで周囲を認識し、自己位置を推定し、走行ラインを計画して、タイヤの限界ぎりぎりで車両を制御する。そのすべてをAIが担います。</p>
+        <p>マシンはスーパーフォーミュラ車両をベースに、LiDAR・カメラ・レーダー・GNSSなどのセンサー群と車載コンピュータを搭載した自律走行仕様。世界の大学・研究機関のチームが、同じ条件でアルゴリズムの速さを競います。</p>
+        <p>私たちはこの舞台に立つため、シミュレーションと小型実機での検証を重ねながら、自律レーシングのソフトウェアスタックを一から開発しています。</p>
+      </div>
+      <div class="specs">
+        <div class="spec"><div class="n">250<span>km/h+</span></div><div class="t">自律走行での最高速度域</div></div>
+        <div class="spec"><div class="n">0<span>drivers</span></div><div class="t">コクピットに人はいない</div></div>
+        <div class="spec"><div class="n">5.28<span>km</span></div><div class="t">ヤス・マリーナ・サーキット 1周</div></div>
+        <div class="spec"><div class="n">1<span>spec</span></div><div class="t">全チーム同一マシン。差はコードで決まる</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="stack">
+  <div class="wrap">
+    <div class="sec-head">
+      <div><div class="label">02 — Our Stack</div><h2>From sensor<br>to <em>steering.</em></h2></div>
+      <p>センサー入力からステアリング・アクセル指令まで、1秒間に何十回も回る処理パイプラインを自分たちで設計・実装しています。</p>
+    </div>
+    <div class="pipeline">
+      <article class="stage-card">
+        <div class="idx">STAGE 1</div>
+        <h3>Sense</h3><div class="jp">認識</div>
+        <p>LiDAR点群とカメラ画像を統合し、コース境界・ライバル車両・障害物をリアルタイムに検出します。</p>
+        <div class="tags"><span class="tag">LiDAR</span><span class="tag">Camera</span><span class="tag">Radar</span><span class="tag">Sensor Fusion</span></div>
+      </article>
+      <article class="stage-card">
+        <div class="idx">STAGE 2</div>
+        <h3>Localize</h3><div class="jp">自己位置推定</div>
+        <p>GNSS/IMUと地図マッチングを組み合わせ、250km/h走行中でもセンチメートル単位で自車位置を把握します。</p>
+        <div class="tags"><span class="tag">GNSS/IMU</span><span class="tag">EKF</span><span class="tag">Map Matching</span></div>
+      </article>
+      <article class="stage-card">
+        <div class="idx">STAGE 3</div>
+        <h3>Plan</h3><div class="jp">経路計画</div>
+        <p>最小ラップタイムのレーシングラインを最適化し、オーバーテイクや防御の判断をリアルタイムで行います。</p>
+        <div class="tags"><span class="tag">Racing Line Opt.</span><span class="tag">Overtake Logic</span><span class="tag">Prediction</span></div>
+      </article>
+      <article class="stage-card">
+        <div class="idx">STAGE 4</div>
+        <h3>Control</h3><div class="jp">車両制御</div>
+        <p>タイヤ摩擦円の限界を見極めるモデル予測制御で、ステアリング・スロットル・ブレーキを精密に操作します。</p>
+        <div class="tags"><span class="tag">MPC</span><span class="tag">Vehicle Dynamics</span><span class="tag">ROS 2</span></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section id="sim">
+  <div class="wrap">
+    <div class="sec-head">
+      <div><div class="label">03 — Simulation</div><h2>Lap after<br><em>lap.</em></h2></div>
+      <p>実車に乗る前に、仮想サーキットで何千周も走らせる。コーナーの曲率に応じて減速・加速するデモを動かしています。</p>
+    </div>
+    <div class="sim">
+      <div class="sim-canvas">
+        <canvas id="track" aria-label="サーキットを自律走行する車両のシミュレーション"></canvas>
+        <div class="corner">Virtual Circuit · Live</div>
+      </div>
+      <div class="tele">
+        <div class="row"><div><div class="k">Speed</div><div class="bar"><i id="speedBar"></i></div></div><div class="v" id="tSpeed">0</div></div>
+        <div class="row"><span class="k">Lap Time</span><span class="v" id="tLap">0:00.000</span></div>
+        <div class="row"><span class="k">Best Lap</span><span class="v" id="tBest" style="color:var(--amber)">—</span></div>
+        <div class="row"><span class="k">Lap</span><span class="v" id="tCount">1</span></div>
+        <div class="note">※ ブラウザ上の簡易デモです。実際の開発では物理シミュレータ上で車両ダイナミクスとセンサーを再現しています。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="roadmap">
+  <div class="wrap">
+    <div class="sec-head">
+      <div><div class="label">04 — Roadmap</div><h2>Road to<br><em>Abu Dhabi.</em></h2></div>
+      <p>小さく作って、速く試す。段階的にスケールアップしながら実車参戦を目指します。</p>
+    </div>
+    <div class="timeline">
+      <div class="ms done"><div class="when">2026 Q1</div><h3>Team Launch</h3><p>チーム結成。A2RLの技術要件を調査し、開発体制とロードマップを策定。</p><span class="status">DONE</span></div>
+      <div class="ms done"><div class="when">2026 Q2</div><h3>Sim Stack</h3><p>シミュレータ上に認識〜制御の一連のパイプラインを構築。仮想サーキットで初完走。</p><span class="status">DONE</span></div>
+      <div class="ms now"><div class="when">2026 Q4</div><h3>Small-Scale</h3><p>1/10スケールの自律走行カーで実機検証。センサーと制御のSim-to-Real差を詰める。</p><span class="status">IN PROGRESS</span></div>
+      <div class="ms"><div class="when">2027 H1</div><h3>Qualifier</h3><p>参戦に向けた選考・技術課題へのチャレンジ。ラップタイムと安全性を磨き込む。</p><span class="status">NEXT</span></div>
+      <div class="ms"><div class="when">2027 →</div><h3>Race Day</h3><p>ヤス・マリーナのグリッドへ。日本から自律レーシングの最前線に挑む。</p><span class="status">GOAL</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="team">
+  <div class="wrap">
+    <div class="sec-head">
+      <div><div class="label">05 — Team</div><h2>The <em>Crew.</em></h2></div>
+      <p>レーシングドライバーはいません。いるのは、マシンを速くするエンジニアたちです。</p>
+    </div>
+    <div class="team">
+      <div class="member"><div class="num">01</div><h3>優太</h3><div class="role">Team Lead</div><p>プロジェクト統括と全体アーキテクチャ設計。</p></div>
+      <div class="member"><div class="num">02</div><h3>メンバー募集中</h3><div class="role">Perception</div><p>LiDAR・カメラによる認識アルゴリズム担当。</p></div>
+      <div class="member"><div class="num">03</div><h3>メンバー募集中</h3><div class="role">Planning</div><p>レーシングライン最適化と戦略判断担当。</p></div>
+      <div class="member"><div class="num">04</div><h3>メンバー募集中</h3><div class="role">Control</div><p>車両ダイナミクスとMPCによる制御担当。</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="support" id="support">
+  <div class="wrap">
+    <div>
+      <div class="label">06 — Join / Support</div>
+      <h2>Fuel the<br><span>Machine.</span></h2>
+      <p style="color:#c9d0dc;max-width:32em;margin-top:20px">参戦には計算資源、センサー機材、遠征費、そして仲間が必要です。私たちの挑戦に共感いただける企業・研究者・学生の方からのご連絡をお待ちしています。</p>
+      <div class="contact">
+        <code id="mail">contact@example.jp</code>
+        <button type="button" id="copyBtn">Copy</button>
+      </div>
+    </div>
+    <ul>
+      <li><b>SPONSOR</b><span>機材・計算資源・資金面でのご支援</span></li>
+      <li><b>TECH</b><span>センサー、車両、ソフトウェアの技術協力</span></li>
+      <li><b>MENTOR</b><span>自律走行・モータースポーツ分野の専門的助言</span></li>
+      <li><b>JOIN</b><span>学部・学科を問わずメンバー募集中</span></li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 CIT Autonomous Racing — Chiba Institute of Technology</span>
+    <span>Road to A2RL</span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* hero speed streaks */
+  const s = document.getElementById('streaks');
+  if(!reduce){
+    for(let i=0;i<22;i++){
+      const d=document.createElement('div');
+      d.className='streak';
+      d.style.top=(8+Math.random()*80)+'%';
+      d.style.width=(60+Math.random()*220)+'px';
+      d.style.animationDuration=(0.35+Math.random()*0.7)+'s';
+      d.style.animationDelay=(-Math.random()*1)+'s';
+      d.style.opacity=(0.15+Math.random()*0.45).toFixed(2);
+      s.appendChild(d);
+    }
+  }
+
+  /* hero speed readout */
+  const hs=document.getElementById('hudSpeed');
+  let v=0, target=268;
+  function hud(){
+    v += (target-v)*0.06;
+    if(Math.abs(target-v)<2) target = 240+Math.random()*45;
+    hs.innerHTML=Math.round(v)+'<small>km/h</small>';
+    setTimeout(hud,60);
+  }
+  if(reduce){hs.innerHTML='268<small>km/h</small>'} else hud();
+
+  /* copy */
+  const btn=document.getElementById('copyBtn');
+  btn.addEventListener('click',()=>{
+    const t=document.getElementById('mail').textContent;
+    const done=()=>{btn.textContent='Copied';setTimeout(()=>btn.textContent='Copy',1600)};
+    if(navigator.clipboard){navigator.clipboard.writeText(t).then(done).catch(sel)} else sel();
+    function sel(){const r=document.createRange();r.selectNodeContents(document.getElementById('mail'));const g=getSelection();g.removeAllRanges();g.addRange(r);}
+  });
+
+  /* ---------- track sim ---------- */
+  const cv=document.getElementById('track'), ctx=cv.getContext('2d');
+  const ctrl=[[12,62],[10,30],[22,14],[40,18],[48,34],[60,30],[66,12],[84,10],[92,24],[86,40],[72,46],[78,62],[92,72],[86,88],[60,90],[44,80],[30,90],[14,84]];
+  // Catmull-Rom sample
+  const pts=[];
+  const N=ctrl.length, SEG=40;
+  for(let i=0;i<N;i++){
+    const p0=ctrl[(i-1+N)%N],p1=ctrl[i],p2=ctrl[(i+1)%N],p3=ctrl[(i+2)%N];
+    for(let j=0;j<SEG;j++){
+      const t=j/SEG,t2=t*t,t3=t2*t;
+      const f=(a,b,c,d)=>0.5*((2*b)+(-a+c)*t+(2*a-5*b+4*c-d)*t2+(-a+3*b-3*c+d)*t3);
+      pts.push([f(p0[0],p1[0],p2[0],p3[0]),f(p0[1],p1[1],p2[1],p3[1])]);
+    }
+  }
+  const M=pts.length;
+  // curvature -> target speed
+  const spd=new Array(M);
+  for(let i=0;i<M;i++){
+    const a=pts[(i-6+M)%M],b=pts[i],c=pts[(i+6)%M];
+    const a1=Math.atan2(b[1]-a[1],b[0]-a[0]),a2=Math.atan2(c[1]-b[1],c[0]-b[0]);
+    let d=Math.abs(a2-a1); if(d>Math.PI) d=2*Math.PI-d;
+    spd[i]=Math.max(95,Math.min(285,285-d*520));
+  }
+  // smooth speeds forward/back (braking zones)
+  for(let k=0;k<4;k++){for(let i=M-1;i>=0;i--){spd[i]=Math.min(spd[i],spd[(i+1)%M]+6)}}
+  for(let i=0;i<M;i++){spd[i]=Math.min(spd[i],spd[(i-1+M)%M]+4)}
+  // segment lengths
+  const segLen=[];let total=0;
+  for(let i=0;i<M;i++){const a=pts[i],b=pts[(i+1)%M];const l=Math.hypot(b[0]-a[0],b[1]-a[1]);segLen.push(l);total+=l}
+
+  let W=0,H=0,dpr=1;
+  function size(){
+    const r=cv.getBoundingClientRect();dpr=Math.min(2,window.devicePixelRatio||1);
+    W=r.width;H=r.height;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  size(); window.addEventListener('resize',size);
+  const P=p=>{const pad=Math.min(W,H)*0.08;return [pad+(p[0]/100)*(W-pad*2),pad+(p[1]/100)*(H-pad*2)]};
+
+  let idx=0, frac=0, lapT=0, best=null, lap=1, last=performance.now();
+  const trail=[];
+  const tS=document.getElementById('tSpeed'),tL=document.getElementById('tLap'),tB=document.getElementById('tBest'),tC=document.getElementById('tCount'),bar=document.getElementById('speedBar');
+  const fmt=t=>{const m=Math.floor(t/60),s=t-m*60;return m+':'+(s<10?'0':'')+s.toFixed(3)};
+  const css=getComputedStyle(document.documentElement);
+  const C={amber:css.getPropertyValue('--amber').trim(),cyan:css.getPropertyValue('--cyan').trim(),line:css.getPropertyValue('--line').trim(),fg:css.getPropertyValue('--fg').trim()};
+
+  function draw(now){
+    const dt=Math.min(0.05,(now-last)/1000); last=now;
+    const cur=spd[idx]+(spd[(idx+1)%M]-spd[idx])*frac;
+    if(!reduce){
+      // demo scale: 1 unit ≈ 52.8m so a lap ≈ real circuit length, time compressed x4 for watching
+      let move=cur/3.6*dt*4/ (5280/total);
+      lapT+=dt*4;
+      while(move>0){
+        const rem=segLen[idx]*(1-frac);
+        if(move<rem){frac+=move/segLen[idx];move=0}
+        else{move-=rem;frac=0;idx=(idx+1)%M;
+          if(idx===0){ if(best===null||lapT<best){best=lapT;tB.textContent=fmt(best)} lapT=0;lap++;tC.textContent=lap; }
+        }
+      }
+    }
+    ctx.clearRect(0,0,W,H);
+    // track asphalt
+    ctx.lineJoin='round';ctx.lineCap='round';
+    ctx.beginPath();pts.forEach((p,i)=>{const q=P(p);i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])});ctx.closePath();
+    ctx.strokeStyle=C.line;ctx.lineWidth=Math.max(14,W*0.032);ctx.stroke();
+    ctx.setLineDash([6,6]);ctx.strokeStyle='rgba(233,237,244,.18)';ctx.lineWidth=1.2;ctx.stroke();ctx.setLineDash([]);
+    // racing line colored by speed
+    for(let i=0;i<M;i+=2){
+      const a=P(pts[i]),b=P(pts[(i+2)%M]);const k=(spd[i]-95)/190;
+      ctx.strokeStyle=k>0.6?'rgba(69,209,255,.55)':'rgba(255,138,31,.75)';
+      ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();
+    }
+    // start line
+    const s0=P(pts[0]),s1=P(pts[3]);const ang=Math.atan2(s1[1]-s0[1],s1[0]-s0[0])+Math.PI/2;const L=W*0.022;
+    ctx.strokeStyle=C.fg;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(s0[0]+Math.cos(ang)*L,s0[1]+Math.sin(ang)*L);ctx.lineTo(s0[0]-Math.cos(ang)*L,s0[1]-Math.sin(ang)*L);ctx.stroke();
+    // car
+    const a=pts[idx],b=pts[(idx+1)%M];const pos=P([a[0]+(b[0]-a[0])*frac,a[1]+(b[1]-a[1])*frac]);
+    trail.push(pos);if(trail.length>28)trail.shift();
+    for(let i=1;i<trail.length;i++){ctx.strokeStyle='rgba(255,138,31,'+(i/trail.length*0.9).toFixed(2)+')';ctx.lineWidth=4*i/trail.length+1;ctx.beginPath();ctx.moveTo(trail[i-1][0],trail[i-1][1]);ctx.lineTo(trail[i][0],trail[i][1]);ctx.stroke()}
+    // lidar cone
+    const pb=P(b),pa=P(a);const h=Math.atan2(pb[1]-pa[1],pb[0]-pa[0]);
+    const g=ctx.createRadialGradient(pos[0],pos[1],0,pos[0],pos[1],W*0.09);g.addColorStop(0,'rgba(69,209,255,.35)');g.addColorStop(1,'rgba(69,209,255,0)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(pos[0],pos[1]);ctx.arc(pos[0],pos[1],W*0.09,h-0.5,h+0.5);ctx.closePath();ctx.fill();
+    ctx.fillStyle=C.amber;ctx.shadowColor=C.amber;ctx.shadowBlur=16;ctx.beginPath();ctx.arc(pos[0],pos[1],6,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+    ctx.fillStyle=C.fg;ctx.beginPath();ctx.arc(pos[0],pos[1],2.4,0,Math.PI*2);ctx.fill();
+
+    tS.textContent=Math.round(cur);bar.style.width=((cur-80)/210*100).toFixed(1)+'%';
+    tL.textContent=fmt(lapT);
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
